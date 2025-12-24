@@ -14,7 +14,7 @@ class LLMClient:
             raise ValueError(f"Unsupported LLM provider: {Config.LLM_PROVIDER}")
     
     def generate_response(self, query: str, context_docs: List[Dict]) -> str:
-        """Generate response using LLM with retrieved context"""
+        """Generate response using LLM"""
         prompt = self._build_prompt(query, context_docs)
         
         try:

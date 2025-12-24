@@ -20,6 +20,7 @@ class SemanticCache:
             name=Config.CACHE_COLLECTION_NAME,
             metadata={"hnsw:space": "cosine"}
         )
+
     
     def check_cache(self, query: str, threshold: float = Config.CACHE_SIMILARITY_THRESHOLD) -> Optional[Dict]:
         """Check if similar query exists in cache"""
@@ -31,7 +32,7 @@ class SemanticCache:
                 n_results=1
             )
             
-            if results['ids'][0]:  # Cache hit
+            if results['ids'][0]:
                 similarity = 1 - results['distances'][0][0]
                 
                 if similarity >= threshold:
@@ -63,11 +64,3 @@ class SemanticCache:
             logger.info("Added to cache")
         except Exception as e:
             logger.error(f"Cache add error: {e}")
-    
-    def clear_cache(self):
-        """Clear all cached queries"""
-        self.client.delete_collection(Config.CACHE_COLLECTION_NAME)
-        self.collection = self.client.create_collection(
-            name=Config.CACHE_COLLECTION_NAME,
-            metadata={"hnsw:space": "cosine"}
-        )

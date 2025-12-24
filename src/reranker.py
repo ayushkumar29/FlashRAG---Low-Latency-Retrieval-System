@@ -15,16 +15,11 @@ class DocumentReranker:
         if not documents:
             return []
         
-        # Prepare query-document pairs
         pairs = [[query, doc['text']] for doc in documents]
-        
-        # Get cross-encoder scores
         scores = self.model.predict(pairs)
         
-        # Add scores to documents
         for doc, score in zip(documents, scores):
             doc['rerank_score'] = float(score)
         
-        # Sort by rerank score and return top-k
         reranked = sorted(documents, key=lambda x: x['rerank_score'], reverse=True)
         return reranked[:top_k]

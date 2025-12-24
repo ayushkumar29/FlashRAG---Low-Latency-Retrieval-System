@@ -16,7 +16,6 @@ class DocumentRetriever:
         self.embedding_gen = EmbeddingGenerator()
         self.collection_name = collection_name
         
-        # Get or create document collection
         self.collection = self.client.get_or_create_collection(
             name=collection_name,
             metadata={"hnsw:space": "cosine"}
@@ -28,11 +27,9 @@ class DocumentRetriever:
         ids = [chunk['id'] for chunk in chunks]
         metadatas = [chunk['metadata'] for chunk in chunks]
         
-        # Generate embeddings
         print("Generating embeddings...")
         embeddings = self.embedding_gen.embed_documents(texts)
         
-        # Add to collection in batches
         batch_size = 100
         for i in range(0, len(chunks), batch_size):
             end_idx = min(i + batch_size, len(chunks))
