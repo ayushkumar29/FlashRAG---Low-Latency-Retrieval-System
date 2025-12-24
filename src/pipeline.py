@@ -18,7 +18,7 @@ class FlashRAGPipeline:
         self._lock = threading.Lock()
     
     def query(self, question: str, use_cache: bool = True) -> Dict:
-        """Main query pipeline with metrics"""
+        """Main query pipeline"""
         start_time = time.time()
         metrics = {
             "cache_hit": False,
@@ -27,7 +27,6 @@ class FlashRAGPipeline:
             "latency_ms": 0
         }
         
-        # Step 1: Check cache
         if use_cache:
             cached_result = self.cache.check_cache(question)
             if cached_result:
@@ -39,25 +38,17 @@ class FlashRAGPipeline:
                     "metrics": metrics
                 }
         
-        # Step 2: Retrieve documents
         retrieved_docs = self.retriever.retrieve(question)
         metrics["num_retrieved"] = len(retrieved_docs)
         
-        # Step 3: Rerank documents
         reranked_docs = self.reranker.rerank(question, retrieved_docs)
         metrics["num_reranked"] = len(reranked_docs)
         
-        # Step 4: Generate response
         answer = self.llm.generate_response(question, reranked_docs)
         
-        # Step 5: Cache the result
         if use_cache:
             with self._lock:
-                self.cache.add_to_cache(
-                    question, 
-                    answer, 
-                    [doc['text'] for doc in reranked_docs]
-                )
+                self.cache.add_to_cache(question, answer, [doc['text'] for doc in reranked_docs])
         
         metrics["latency_ms"] = (time.time() - start_time) * 1000
         
@@ -72,7 +63,6 @@ class FlashRAGPipeline:
         """Streaming query pipeline"""
         start_time = time.time()
         
-        # Check cache first
         if use_cache:
             cached_result = self.cache.check_cache(question)
             if cached_result:
@@ -87,7 +77,6 @@ class FlashRAGPipeline:
                 }
                 return
         
-        # Retrieve and rerank
         retrieved_docs = self.retriever.retrieve(question)
         reranked_docs = self.reranker.rerank(question, retrieved_docs)
         
@@ -97,7 +86,6 @@ class FlashRAGPipeline:
             "done": False
         }
         
-        # Stream LLM response
         full_response = ""
         for chunk in self.llm.generate_response_stream(question, reranked_docs):
             full_response += chunk
@@ -107,14 +95,9 @@ class FlashRAGPipeline:
                 "done": False
             }
         
-        # Cache and finalize
         if use_cache:
             with self._lock:
-                self.cache.add_to_cache(
-                    question, 
-                    full_response, 
-                    [doc['text'] for doc in reranked_docs]
-                )
+                self.cache.add_to_cache(question, full_response, [doc['text'] for doc in reranked_docs])
         
         yield {
             "type": "complete",

@@ -1,4 +1,3 @@
-python
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -27,7 +26,7 @@ class Config:
     # LLM API (Groq - Free tier)
     LLM_PROVIDER = "groq"
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-    GROQ_MODEL = "mixtral-8x7b-32768"
+    GROQ_MODEL = "llama-3.1-8b-instant"
     
     # Retrieval settings
     CHUNK_SIZE = 500
@@ -36,7 +35,7 @@ class Config:
     TOP_K_RERANK = 3
     
     # Cache settings
-    CACHE_SIMILARITY_THRESHOLD = 0.95
+    CACHE_SIMILARITY_THRESHOLD = 0.90
     CACHE_COLLECTION_NAME = "query_cache"
     
     # Batch processing
@@ -44,7 +43,7 @@ class Config:
     MAX_WORKERS = int(os.getenv("MAX_WORKERS", 4))
     
     # Web UI settings
-    WEB_HOST = os.getenv("WEB_HOST", "0.0.0.0")
+    WEB_HOST = os.getenv("WEB_HOST", "127.0.0.1")
     WEB_PORT = int(os.getenv("WEB_PORT", 8000))
     
     # Load testing & production

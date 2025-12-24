@@ -1,7 +1,6 @@
 from sentence_transformers import SentenceTransformer
 from typing import List
 from src.config import Config
-import numpy as np
 
 class EmbeddingGenerator:
     def __init__(self, model_name: str = Config.EMBEDDING_MODEL):
