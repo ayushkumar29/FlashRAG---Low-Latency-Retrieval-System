@@ -15,15 +15,16 @@ class Config:
     # Ensure directories exist
     CACHE_DIR.mkdir(exist_ok=True, parents=True)
     LOGS_DIR.mkdir(exist_ok=True, parents=True)
+    (DATA_DIR / "documents").mkdir(exist_ok=True, parents=True)
     
-    # Embedding model (FREE - Hugging Face)
+    # Embedding model
     EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
     EMBEDDING_DIM = 384
     
-    # Reranker model (FREE - Hugging Face)
+    # Reranker model
     RERANKER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
     
-    # LLM API (Groq - Free tier)
+    # LLM API
     LLM_PROVIDER = "groq"
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
     GROQ_MODEL = "llama-3.1-8b-instant"
@@ -40,14 +41,12 @@ class Config:
     
     # Batch processing
     BATCH_SIZE = 10
-    MAX_WORKERS = int(os.getenv("MAX_WORKERS", 4))
+    MAX_WORKERS = int(os.getenv("MAX_WORKERS", 2))
     
-    # Web UI settings
-    WEB_HOST = os.getenv("WEB_HOST", "127.0.0.1")
-    WEB_PORT = int(os.getenv("WEB_PORT", 8000))
+    # Web UI settings - Render uses PORT env variable
+    WEB_HOST = os.getenv("WEB_HOST", "0.0.0.0")
+    WEB_PORT = int(os.getenv("PORT", os.getenv("WEB_PORT", 10000)))
     
-    # Load testing & production
-    MAX_QUEUE_SIZE = 1000
+    # Production settings
     REQUEST_TIMEOUT = 30
     RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", 60))
-    ENABLE_METRICS = True

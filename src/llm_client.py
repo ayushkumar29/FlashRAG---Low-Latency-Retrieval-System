@@ -14,7 +14,6 @@ class LLMClient:
             raise ValueError(f"Unsupported LLM provider: {Config.LLM_PROVIDER}")
     
     def generate_response(self, query: str, context_docs: List[Dict]) -> str:
-        """Generate response using LLM"""
         prompt = self._build_prompt(query, context_docs)
         
         try:
@@ -31,7 +30,6 @@ class LLMClient:
             raise
     
     def generate_response_stream(self, query: str, context_docs: List[Dict]) -> Iterator[str]:
-        """Generate streaming response"""
         prompt = self._build_prompt(query, context_docs)
         
         try:
@@ -51,7 +49,6 @@ class LLMClient:
             raise
     
     def _build_prompt(self, query: str, context_docs: List[Dict]) -> str:
-        """Build prompt from query and context"""
         context = "\n\n".join([
             f"Document {i+1}:\n{doc['text']}" 
             for i, doc in enumerate(context_docs)

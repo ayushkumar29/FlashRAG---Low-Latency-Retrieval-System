@@ -14,14 +14,12 @@ class DocumentProcessor:
         )
     
     def load_documents(self, directory: str) -> List:
-        """Load all documents from directory"""
         docs = []
         doc_path = Path(directory)
         
         if not doc_path.exists():
             raise ValueError(f"Directory not found: {directory}")
         
-        # Load text files
         for txt_file in doc_path.glob("*.txt"):
             try:
                 loader = TextLoader(str(txt_file))
@@ -29,7 +27,6 @@ class DocumentProcessor:
             except Exception as e:
                 print(f"Error loading {txt_file}: {e}")
         
-        # Load PDF files
         for pdf_file in doc_path.glob("*.pdf"):
             try:
                 loader = PyPDFLoader(str(pdf_file))
@@ -43,10 +40,8 @@ class DocumentProcessor:
         return docs
     
     def chunk_documents(self, documents: List) -> List[Dict]:
-        """Split documents into chunks"""
         chunks = self.text_splitter.split_documents(documents)
         
-        # Convert to dict format
         processed_chunks = []
         for i, chunk in enumerate(chunks):
             processed_chunks.append({

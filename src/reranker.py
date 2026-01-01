@@ -11,7 +11,6 @@ class DocumentReranker:
         self.model = CrossEncoder(model_name)
     
     def rerank(self, query: str, documents: List[Dict], top_k: int = Config.TOP_K_RERANK) -> List[Dict]:
-        """Rerank documents using cross-encoder"""
         if not documents:
             return []
         

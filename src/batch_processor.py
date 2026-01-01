@@ -4,7 +4,6 @@ from src.pipeline import FlashRAGPipeline
 from src.config import Config
 import logging
 from tqdm import tqdm
-import json
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +13,6 @@ class BatchProcessor:
         self.max_workers = max_workers
     
     def process_batch(self, queries: List[str], use_cache: bool = True) -> List[Dict]:
-        """Process multiple queries in parallel"""
         results = []
         
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
@@ -40,24 +38,3 @@ class BatchProcessor:
                     pbar.update(1)
         
         return results
-    
-    def process_file(self, input_file: str, output_file: str, use_cache: bool = True):
-        """Process queries from file"""
-        with open(input_file, 'r') as f:
-            queries = [line.strip() for line in f if line.strip()]
-        
-        logger.info(f"Processing {len(queries)} queries from {input_file}")
-        results = self.process_batch(queries, use_cache)
-        
-        with open(output_file, 'w') as f:
-            json.dump(results, f, indent=2)
-        
-        logger.info(f"Results saved to {output_file}")
-        
-        cache_hits = sum(1 for r in results if r.get('metrics', {}).get('cache_hit', False))
-        avg_latency = sum(r.get('metrics', {}).get('latency_ms', 0) for r in results) / len(results)
-        
-        print(f"\n📊 Batch Processing Summary:")
-        print(f"  - Total Queries: {len(results)}")
-        print(f"  - Cache Hits: {cache_hits} ({cache_hits/len(results)*100:.1f}%)")
-        print(f"  - Average Latency: {avg_latency:.2f}ms")
