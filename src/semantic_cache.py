@@ -15,15 +15,12 @@ class SemanticCache:
         )
         self.embedding_gen = EmbeddingGenerator()
         
-        # Get or create cache collection
         self.collection = self.client.get_or_create_collection(
             name=Config.CACHE_COLLECTION_NAME,
             metadata={"hnsw:space": "cosine"}
         )
-
     
     def check_cache(self, query: str, threshold: float = Config.CACHE_SIMILARITY_THRESHOLD) -> Optional[Dict]:
-        """Check if similar query exists in cache"""
         try:
             query_embedding = self.embedding_gen.embed_query(query)
             
@@ -48,7 +45,6 @@ class SemanticCache:
         return None
     
     def add_to_cache(self, query: str, response: str, retrieved_docs: List[str]):
-        """Add query-response pair to cache"""
         try:
             query_embedding = self.embedding_gen.embed_query(query)
             
@@ -64,3 +60,4 @@ class SemanticCache:
             logger.info("Added to cache")
         except Exception as e:
             logger.error(f"Cache add error: {e}")
+

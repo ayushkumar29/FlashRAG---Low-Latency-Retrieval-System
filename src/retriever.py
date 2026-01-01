@@ -22,7 +22,6 @@ class DocumentRetriever:
         )
     
     def index_documents(self, chunks: List[Dict]):
-        """Index document chunks into ChromaDB"""
         texts = [chunk['text'] for chunk in chunks]
         ids = [chunk['id'] for chunk in chunks]
         metadatas = [chunk['metadata'] for chunk in chunks]
@@ -43,7 +42,6 @@ class DocumentRetriever:
         logger.info(f"✓ Indexed {len(chunks)} document chunks")
     
     def retrieve(self, query: str, top_k: int = Config.TOP_K_RETRIEVAL) -> List[Dict]:
-        """Retrieve top-k relevant documents"""
         query_embedding = self.embedding_gen.embed_query(query)
         
         results = self.collection.query(

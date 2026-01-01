@@ -18,7 +18,6 @@ class FlashRAGPipeline:
         self._lock = threading.Lock()
     
     def query(self, question: str, use_cache: bool = True) -> Dict:
-        """Main query pipeline"""
         start_time = time.time()
         metrics = {
             "cache_hit": False,
@@ -60,7 +59,6 @@ class FlashRAGPipeline:
         }
     
     def query_stream(self, question: str, use_cache: bool = True) -> Iterator[Dict]:
-        """Streaming query pipeline"""
         start_time = time.time()
         
         if use_cache:

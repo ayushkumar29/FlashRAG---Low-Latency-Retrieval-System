@@ -15,7 +15,6 @@ class MetricsCollector:
         self.lock = Lock()
     
     def record_request(self, request_metrics: dict):
-        """Record metrics for a request"""
         with self.lock:
             self.metrics["total_requests"] += 1
             
@@ -33,7 +32,6 @@ class MetricsCollector:
             self.metrics["requests_per_second"] = self.metrics["total_requests"] / elapsed
     
     def get_summary(self) -> dict:
-        """Get metrics summary"""
         with self.lock:
             cache_hit_rate = (
                 self.metrics["cache_hits"] / self.metrics["total_requests"] * 100
@@ -44,4 +42,3 @@ class MetricsCollector:
                 **self.metrics,
                 "cache_hit_rate": f"{cache_hit_rate:.2f}%"
             }
-

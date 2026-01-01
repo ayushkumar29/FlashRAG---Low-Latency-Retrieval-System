@@ -10,7 +10,6 @@ class RateLimiter:
         self.lock = Lock()
     
     def allow_request(self, client_id: str) -> bool:
-        """Check if request is allowed under rate limit"""
         with self.lock:
             current_time = time.time()
             
