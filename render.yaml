@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: flashrag-api
+    env: python
+    buildCommand: "./setup.sh"
+    startCommand: "python main.py"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.0
+      - key: PORT
+        value: 10000

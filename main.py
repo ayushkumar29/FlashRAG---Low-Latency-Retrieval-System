@@ -35,4 +35,4 @@ startup_index()
 if __name__ == "__main__":
     import uvicorn
     print(f"Starting FlashRAG on port {Config.WEB_PORT}")
-    uvicorn.run(app, host="127.0.0.1", port=Config.WEB_PORT)
+    uvicorn.run(app, host="0.0.0.0", port=Config.WEB_PORT)

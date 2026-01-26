@@ -389,12 +389,15 @@ QUESTION: {query}
 INSTRUCTIONS:
 1. Read the sources carefully
 2. Answer the question directly and concisely
-3. Use information from the sources to support your answer
+3. Use information from the sources as your primary truth
 4. Do NOT repeat or copy the source text
 5. Do NOT list the sources in your answer
-6. If the answer is not in the sources, say "I don't have enough information to answer that question."
+6. If the answer is not in the sources but the question is related to the TOPICS in the sources (e.g. AI, Machine Learning), you MAY use your general knowledge to answer.
+7. Only if the question is completely unrelated to the sources, say "I don't have enough information to answer that question."
 
 YOUR ANSWER:"""
+        
+        return prompt
         
         return prompt
 

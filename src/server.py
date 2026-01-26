@@ -363,6 +363,7 @@ async def root():
             flex: 1;
             overflow-y: auto;
             padding: 40px;
+            padding-bottom: 140px;
             display: flex;
             flex-direction: column;
             gap: 24px;
