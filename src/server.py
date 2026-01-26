@@ -98,7 +98,34 @@ class MetricsCollector:
 # ==========================================
 # WEB SERVER
 # ==========================================
-app = FastAPI(title="FlashRAG API", version="1.0.0")
+from contextlib import asynccontextmanager
+
+# Global State
+pipeline = None
+pipeline_ready = False
+
+def init_pipeline_background():
+    """Initialize the pipeline in background"""
+    global pipeline, pipeline_ready
+    logger.info("Initializing FlashRAG Pipeline...")
+    try:
+        pipeline = FlashRAGPipeline()
+        pipeline_ready = True
+        logger.info("Pipeline Ready!")
+    except Exception as e:
+        logger.error(f"Pipeline initialization failed: {e}")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    logger.info("Server starting up...")
+    thread = threading.Thread(target=init_pipeline_background, daemon=True)
+    thread.start()
+    yield
+    # Shutdown
+    logger.info("Server shutting down...")
+
+app = FastAPI(title="FlashRAG API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -108,7 +135,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-pipeline = FlashRAGPipeline()
 rate_limiter = RateLimiter(max_requests=Config.RATE_LIMIT_PER_MINUTE)
 metrics = MetricsCollector()
 
@@ -119,6 +145,9 @@ class QueryRequest(BaseModel):
 
 @app.post("/api/query")
 async def query(request: QueryRequest, req: Request):
+    if not pipeline_ready:
+        raise HTTPException(status_code=503, detail="System is initializing. Please try again in a few seconds.")
+
     client_ip = req.client.host
     
     if not rate_limiter.allow_request(client_ip):
@@ -154,6 +183,9 @@ async def query(request: QueryRequest, req: Request):
 @app.post("/api/clear-cache")
 async def clear_cache():
     """Clear the semantic cache"""
+    if not pipeline_ready:
+        raise HTTPException(status_code=503, detail="System initializing...")
+        
     try:
         from src.rag_engine import SemanticCache
         cache = SemanticCache()
@@ -183,10 +215,10 @@ async def upload_file(file: UploadFile = File(...)):
                 content = await file.read()
                 buffer.write(content)
         
-        # Reindex
-        await asyncio.to_thread(reindex_documents)
+        # Trigger background reindex
+        threading.Thread(target=reindex_documents, daemon=True).start()
         
-        return {"status": "success", "message": f"File '{file.filename}' uploaded and indexed"}
+        return {"status": "success", "message": f"File '{file.filename}' uploaded. Indexing started in background."}
     
     except Exception as e:
         logger.error(f"Upload error: {e}")
@@ -194,6 +226,10 @@ async def upload_file(file: UploadFile = File(...)):
 
 def reindex_documents():
     try:
+        if not pipeline_ready:
+            logger.warning("Skipping reindex because pipeline is not ready")
+            return
+
         processor = DocumentProcessor()
         docs_dir = str(Config.DATA_DIR / "documents")
         
@@ -206,7 +242,7 @@ def reindex_documents():
         logger.info(f"Reindexed {len(chunks)} chunks")
     except Exception as e:
         logger.error(f"Reindex error: {e}")
-        raise
+        # Dont raise here, it's a background thread
 
 @app.get("/api/metrics")
 async def get_metrics():
@@ -214,7 +250,8 @@ async def get_metrics():
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "healthy", "version": "1.0.0"}
+    status = "healthy" if pipeline_ready else "initializing"
+    return {"status": status, "version": "1.0.0", "ready": pipeline_ready}
 
 async def stream_response(query: str, use_cache: bool):
     try:
@@ -685,6 +722,13 @@ async def root():
                         body: JSON.stringify({ query, use_cache: useCache, stream: true })
                     });
 
+                    if (response.status === 503) {
+                        aiContentDiv.innerHTML = '<p>🚀 <b>System Initializing...</b></p><p>Models are loading in the background. Please wait 30-60 seconds and try again.</p>';
+                        return;
+                    }
+
+                    if (!response.ok) throw new Error('Server error: ' + response.status);
+
                     const reader = response.body.getReader();
                     const decoder = new TextDecoder();
                     
@@ -722,6 +766,14 @@ async def root():
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({ query, use_cache: useCache, stream: false })
                     });
+
+                    if (response.status === 503) {
+                        aiContentDiv.innerHTML = '<p>🚀 <b>System Initializing...</b></p><p>Models are loading in the background. Please wait 30-60 seconds and try again.</p>';
+                        return;
+                    }
+                    
+                    if (!response.ok) throw new Error('Server error: ' + response.status);
+
                     const data = await response.json();
                     
                     aiContentDiv.innerHTML = marked.parse(data.answer);
