@@ -1,117 +1,63 @@
-# FlashRAG - Low-Latency RAG System ⚡
+# FlashRAG - Low-Latency RAG System
 
-Production-ready Retrieval-Augmented Generation system achieving 98% latency reduction through semantic caching.
+A production-ready Retrieval-Augmented Generation system that delivers millisecond-level responses through intelligent semantic caching and efficient vector retrieval.
 
-[![Live Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://flashrag.onrender.com)
-[![Python 3.11](https://img.shields.io/badge/python-3.11-blue)](https://python.org)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+## Features
 
-## 🎯 Features
+- **Semantic Caching**: Reduces response time from 2500ms to under 45ms for cached queries.
+- **Accurate Retrieval**: Uses Cross-Encoder reranking (MS-MARCO) for high precision.
+- **Real-time Streaming**: Instant token generation for better user experience.
+- **Document Support**: Upload and index PDF, TXT, and DOCX files.
+- **Production Ready**: Includes rate limiting, metrics monitoring, and robust error handling.
 
-- ⚡ **98% Latency Reduction** - Semantic caching (2500ms → 45ms)
-- 🎯 **Cross-Encoder Reranking** - MS-MARCO model for precision
-- 📡 **Streaming Responses** - Real-time token generation
-- 📁 **File Upload** - PDF, TXT, DOCX support
-- 📊 **Production Metrics** - Real-time monitoring
-- 🚀 **High Performance** - 200+ req/sec throughput
+## Quick Start (Local)
 
+1. **Clone the repository**
+   ```bash
+   git clone <your-repo-url>
+   cd flashrag
+   ```
 
-## 📊 Performance Metrics
+2. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-| Metric | Value |
-|--------|-------|
-| Cache Hit Latency | 45ms |
-| Cache Miss Latency | 2500ms |
-| Cache Hit Rate | 75% |
-| Throughput | 200+ req/sec |
-| Hallucination Rate | 2% |
-| P95 Latency | <300ms |
+3. **Configure API Key**
+   Set your Groq API key (required for LLM):
+   - Windows (PowerShell): `$env:GROQ_API_KEY="your_key_here"`
+   - Linux/Mac: `export GROQ_API_KEY=your_key_here`
 
-## 🛠️ Local Development
-```bash
-# Clone repository
-git clone <your-repo-url>
-cd flashrag
+4. **Run the server**
+   ```bash
+   python main.py
+   ```
+   Access the application at http://127.0.0.1:10000
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+## How It Works
 
-# Install dependencies
-pip install -r requirements.txt
+1. **User asks a question**.
+2. **Semantic Cache Check**: If a similar question was asked before, return the cached answer immediately (45ms).
+3. **Retrieval (if cache miss)**: Search the vector database for relevant document chunks.
+4. **Reranking**: Use a high-precision model to rank the retrieved chunks.
+5. **Generation**: Send the best chunks to the LLM (Llama 3.1) to generate an answer.
+6. **Cache Update**: Store the new question-answer pair for future use.
 
-# Set environment variable
-export GROQ_API_KEY=your_key_here
+## Deployment (Render)
 
-# Run locally
-python main.py
-```
+This project is configured for one-click deployment on Render.
 
-Visit: http://localhost:10000
+1. Push your code to a GitHub repository.
+2. Link the repository to a new Render Web Service.
+3. Set the environment variable `GROQ_API_KEY`.
+4. Render will automatically build and deploy using the included configuration.
 
-## 📚 API Endpoints
+## API Usage
 
-- `POST /api/query` - Submit questions
-- `POST /api/upload` - Upload documents
-- `GET /api/metrics` - System metrics
-- `GET /api/health` - Health check
-- `GET /docs` - Interactive API documentation
+- **Query**: `POST /api/query` - Send JSON with `{"query": "your question"}`.
+- **Upload**: `POST /api/upload` - Upload a document file.
+- **Metrics**: `GET /api/metrics` - View system performance stats.
 
-## 🏗️ Architecture
-```
-User Query
-    ↓
-Semantic Cache (ChromaDB) → 45ms if hit
-    ↓ (miss)
-Vector Retrieval (Top-K)
-    ↓
-Cross-Encoder Reranking (Top-3)
-    ↓
-LLM Generation (Groq/Llama 3.1)
-    ↓
-Cache & Return Response
-```
+## License
 
-## 🎓 Technology Stack
-
-- **Backend**: FastAPI, Python 3.11
-- **Vector Database**: ChromaDB
-- **Embeddings**: Sentence Transformers (all-MiniLM-L6-v2)
-- **Reranker**: Cross-Encoder (MS-MARCO)
-- **LLM**: Groq API (Llama 3.1 8B Instant)
-- **Deployment**: Render
-
-## 🎯 Key Achievements
-
-- 98% latency reduction via semantic caching
-- 40% API cost savings
-- 95% hallucination reduction through document grounding
-- 75% cache hit rate recognizing query variations
-- Production-ready with rate limiting and monitoring
-
-## 📝 Environment Variables
-```bash
-GROQ_API_KEY=your_groq_api_key  # Required
-WEB_HOST=0.0.0.0                # Optional
-WEB_PORT=10000                  # Optional (Render sets PORT automatically)
-MAX_WORKERS=2                   # Optional
-RATE_LIMIT_PER_MINUTE=60        # Optional
-```
-
-## 🤝 Contributing
-
-Contributions welcome! Please open an issue or PR.
-
-## 📄 License
-
-MIT License - see LICENSE file for details
-
-## 👤 Author
-
-Your Name - [GitHub](https://github.com/ayushkumar29) | [LinkedIn](https://linkedin.com/in/ayush2904)
-
-## 🔗 Links
-
-- **Live Demo**: https://flashrag.onrender.com
-- **Documentation**: https://flashrag.onrender.com/docs
-- **GitHub**: https://github.com/yourusername/flashrag
+MIT License
