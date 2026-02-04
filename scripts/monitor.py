@@ -1,12 +1,3 @@
-"""
-Real-time monitoring dashboard for FlashRAG
-
-Usage:
-    python scripts/monitor.py
-    
-Press Ctrl+C to stop
-"""
-
 import time
 import requests
 from rich.console import Console
@@ -21,7 +12,6 @@ console = Console()
 
 
 def get_metrics():
-    """Fetch metrics from API"""
     try:
         response = requests.get("http://localhost:8000/api/metrics", timeout=2)
         if response.status_code == 200:
@@ -32,7 +22,6 @@ def get_metrics():
 
 
 def create_metrics_table(metrics):
-    """Create formatted metrics table"""
     table = Table(
         title="FlashRAG System Metrics",
         show_header=True,
@@ -45,56 +34,47 @@ def create_metrics_table(metrics):
     table.add_column("Status", style="yellow", width=15)
     
     if metrics:
-        # Basic metrics
-        table.add_row("Total Requests", str(metrics['total_requests']), "✓")
-        table.add_row("Cache Hits", str(metrics['cache_hits']), "✓")
-        table.add_row("Cache Misses", str(metrics['cache_misses']), "✓")
+        table.add_row("Total Requests", str(metrics['total_requests']), "OK")
+        table.add_row("Cache Hits", str(metrics['cache_hits']), "OK")
+        table.add_row("Cache Misses", str(metrics['cache_misses']), "OK")
         
-        # Calculated metrics
         cache_rate = float(metrics['cache_hit_rate'].rstrip('%'))
-        cache_status = "🔥 Excellent" if cache_rate > 70 else "⚠️  Low" if cache_rate > 40 else "❌ Poor"
+        cache_status = "Excellent" if cache_rate > 70 else "Low" if cache_rate > 40 else "Poor"
         table.add_row("Cache Hit Rate", metrics['cache_hit_rate'], cache_status)
         
-        # Latency
         avg_lat = metrics['avg_latency']
-        lat_status = "🔥 Fast" if avg_lat < 100 else "⚠️  OK" if avg_lat < 500 else "❌ Slow"
+        lat_status = "Fast" if avg_lat < 100 else "OK" if avg_lat < 500 else "Slow"
         table.add_row("Avg Latency", f"{avg_lat:.2f}ms", lat_status)
         
-        # Throughput
         rps = metrics['requests_per_second']
-        rps_status = "🔥 High" if rps > 50 else "⚠️  Medium" if rps > 10 else "❌ Low"
+        rps_status = "High" if rps > 50 else "Medium" if rps > 10 else "Low"
         table.add_row("Requests/sec", f"{rps:.2f}", rps_status)
         
-        # Uptime
         uptime = time.time() - metrics['start_time']
         hours = int(uptime // 3600)
         minutes = int((uptime % 3600) // 60)
         seconds = int(uptime % 60)
-        table.add_row("Uptime", f"{hours:02d}:{minutes:02d}:{seconds:02d}", "✓")
+        table.add_row("Uptime", f"{hours:02d}:{minutes:02d}:{seconds:02d}", "OK")
     else:
-        table.add_row("Status", "[red]Server Not Responding[/red]", "❌")
+        table.add_row("Status", "[red]Server Not Responding[/red]", "Error")
     
     return table
 
 
 def create_dashboard(metrics):
-    """Create full dashboard layout"""
     layout = Layout()
     
-    # Header
     header = Panel(
         f"[bold blue]FlashRAG Monitoring Dashboard[/bold blue]\n"
         f"[yellow]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}[/yellow]",
         border_style="green"
     )
     
-    # Metrics table
     metrics_panel = Panel(
         create_metrics_table(metrics),
         border_style="blue"
     )
     
-    # Instructions
     footer = Panel(
         "[yellow]Press Ctrl+C to stop monitoring[/yellow] | "
         "[cyan]Refreshing every 1 second[/cyan]",
@@ -111,9 +91,8 @@ def create_dashboard(metrics):
 
 
 def monitor():
-    """Run live monitoring dashboard"""
     console.clear()
-    console.print("\n[bold blue]🚀 Starting FlashRAG Monitor...[/bold blue]\n")
+    console.print("\n[bold blue]Starting FlashRAG Monitor...[/bold blue]\n")
     console.print("[yellow]Connecting to http://localhost:8000[/yellow]")
     console.print("[yellow]Make sure the server is running: python main.py serve[/yellow]\n")
     
@@ -127,7 +106,7 @@ def monitor():
                 time.sleep(1)
     
     except KeyboardInterrupt:
-        console.print("\n\n[yellow]👋 Monitoring stopped[/yellow]\n")
+        console.print("\n\n[yellow]Monitoring stopped[/yellow]\n")
 
 
 if __name__ == "__main__":

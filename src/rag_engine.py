@@ -1,4 +1,3 @@
-
 import os
 import time
 import json
@@ -19,64 +18,48 @@ from tqdm import tqdm
 
 load_dotenv()
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ==========================================
-# CONFIGURATION
-# ==========================================
+
 class Config:
-    # Project paths
     BASE_DIR = Path(__file__).parent.parent
     DATA_DIR = BASE_DIR / "data"
     CACHE_DIR = BASE_DIR / "cache"
     CHROMA_DIR = CACHE_DIR / "chroma_db"
     LOGS_DIR = BASE_DIR / "logs"
     
-    # Ensure directories exist
     CACHE_DIR.mkdir(exist_ok=True, parents=True)
     LOGS_DIR.mkdir(exist_ok=True, parents=True)
     (DATA_DIR / "documents").mkdir(exist_ok=True, parents=True)
     
-    # Embedding model
     EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
     EMBEDDING_DIM = 384
     
-    # Reranker model
     RERANKER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
     
-    # LLM API
     LLM_PROVIDER = "groq"
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
     GROQ_MODEL = "llama-3.1-8b-instant"
     
-    # Retrieval settings
     CHUNK_SIZE = 500
     CHUNK_OVERLAP = 50
     TOP_K_RETRIEVAL = 10
     TOP_K_RERANK = 3
     
-    # Cache settings
     CACHE_SIMILARITY_THRESHOLD = 0.90
     CACHE_COLLECTION_NAME = "query_cache"
     
-    # Batch processing
     BATCH_SIZE = 10
     MAX_WORKERS = int(os.getenv("MAX_WORKERS", 2))
     
-    # Web UI settings
     WEB_HOST = os.getenv("WEB_HOST", "0.0.0.0")
     WEB_PORT = int(os.getenv("PORT", os.getenv("WEB_PORT", 10000)))
     
-    # Production settings
     REQUEST_TIMEOUT = 30
     RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", 60))
 
 
-# ==========================================
-# EMBEDDINGS
-# ==========================================
 class EmbeddingGenerator:
     def __init__(self, model_name: str = Config.EMBEDDING_MODEL):
         print(f"Loading embedding model: {model_name}")
@@ -91,9 +74,6 @@ class EmbeddingGenerator:
         return embedding.tolist()
 
 
-# ==========================================
-# RERANKER
-# ==========================================
 class DocumentReranker:
     def __init__(self, model_name: str = Config.RERANKER_MODEL):
         logger.info(f"Loading reranker model: {model_name}")
@@ -113,9 +93,6 @@ class DocumentReranker:
         return reranked[:top_k]
 
 
-# ==========================================
-# SEMANTIC CACHE
-# ==========================================
 class SemanticCache:
     def __init__(self):
         self.client = chromadb.PersistentClient(
@@ -171,9 +148,6 @@ class SemanticCache:
             logger.error(f"Cache add error: {e}")
 
 
-# ==========================================
-# DOCUMENT PROCESSOR
-# ==========================================
 class DocumentProcessor:
     def __init__(self, chunk_size: int = Config.CHUNK_SIZE, 
                  chunk_overlap: int = Config.CHUNK_OVERLAP):
@@ -231,9 +205,6 @@ class DocumentProcessor:
         return processed_chunks
 
 
-# ==========================================
-# RETRIEVER
-# ==========================================
 class DocumentRetriever:
     def __init__(self, collection_name: str = "documents"):
         self.client = chromadb.PersistentClient(
@@ -288,9 +259,6 @@ class DocumentRetriever:
         return retrieved_docs
 
 
-# ==========================================
-# LLM CLIENT
-# ==========================================
 class LLMClient:
     def __init__(self):
         if Config.LLM_PROVIDER == "groq":
@@ -301,7 +269,6 @@ class LLMClient:
             raise ValueError(f"Unsupported LLM provider: {Config.LLM_PROVIDER}")
     
     def generate_response(self, query: str, context_docs: List[Dict]) -> str:
-        """Generate response using LLM with retrieved context"""
         prompt = self._build_prompt(query, context_docs)
         
         try:
@@ -323,8 +290,6 @@ class LLMClient:
             )
             
             answer = response.choices[0].message.content
-            
-            # Clean up any control characters
             answer = ''.join(char for char in answer if char.isprintable() or char in '\n\r\t')
             
             return answer.strip()
@@ -334,7 +299,6 @@ class LLMClient:
             raise
     
     def generate_response_stream(self, query: str, context_docs: List[Dict]) -> Iterator[str]:
-        """Generate streaming response"""
         prompt = self._build_prompt(query, context_docs)
         
         try:
@@ -358,7 +322,6 @@ class LLMClient:
             for chunk in stream:
                 if chunk.choices[0].delta.content:
                     content = chunk.choices[0].delta.content
-                    # Clean content
                     content = ''.join(char for char in content if char.isprintable() or char in '\n\r\t')
                     yield content
                     
@@ -367,18 +330,13 @@ class LLMClient:
             raise
     
     def _build_prompt(self, query: str, context_docs: List[Dict]) -> str:
-        """Build improved prompt from query and context"""
-        
-        # Build context from documents
         context_parts = []
         for i, doc in enumerate(context_docs, 1):
-            # Clean the document text
             doc_text = doc['text'].strip()
             context_parts.append(f"[Source {i}]\n{doc_text}")
         
         context = "\n\n".join(context_parts)
         
-        # IMPROVED PROMPT
         prompt = f"""You are answering a question based on the provided sources.
 
 SOURCES:
@@ -398,13 +356,8 @@ INSTRUCTIONS:
 YOUR ANSWER:"""
         
         return prompt
-        
-        return prompt
 
 
-# ==========================================
-# MAIN PIPELINE
-# ==========================================
 class FlashRAGPipeline:
     def __init__(self):
         self.cache = SemanticCache()
@@ -506,9 +459,6 @@ class FlashRAGPipeline:
         }
 
 
-# ==========================================
-# BATCH PROCESSOR
-# ==========================================
 class BatchProcessor:
     def __init__(self, max_workers: int = Config.MAX_WORKERS):
         self.pipeline = FlashRAGPipeline()

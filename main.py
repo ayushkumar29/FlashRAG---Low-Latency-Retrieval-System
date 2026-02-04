@@ -2,18 +2,15 @@ import sys
 import os
 from pathlib import Path
 
-# Add project to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-# Import from consolidated modules
 from src.server import app
 from src.rag_engine import Config
 
 import threading
 
-# Auto-index on startup if documents exist
+
 def startup_index():
-    """Index documents on startup"""
     try:
         docs_dir = Config.DATA_DIR / "documents"
         if docs_dir.exists() and any(docs_dir.glob("*.txt")) or any(docs_dir.glob("*.pdf")):
@@ -30,10 +27,9 @@ def startup_index():
     except Exception as e:
         print(f"Startup indexing error: {e}", flush=True)
 
-# Run indexing in background thread so server starts immediately
+
 threading.Thread(target=startup_index, daemon=True).start()
 
-# For local development
 if __name__ == "__main__":
     import uvicorn
     print(f"Starting FlashRAG on port {Config.WEB_PORT}", flush=True)

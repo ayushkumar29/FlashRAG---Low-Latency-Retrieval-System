@@ -1,26 +1,11 @@
-"""
-Locust load testing file for FlashRAG
-
-Usage:
-    locust -f benchmarks/locustfile.py --host=http://localhost:8000
-    
-Then open http://localhost:8089 and configure:
-    - Number of users: 50-100
-    - Spawn rate: 10 users/sec
-    - Host: http://localhost:8000
-"""
-
 from locust import HttpUser, task, between
 import random
 
 
 class FlashRAGUser(HttpUser):
-    """Simulates a user interacting with FlashRAG API"""
     
-    # Wait 1-3 seconds between requests
     wait_time = between(1, 3)
     
-    # Test queries
     queries = [
         "What is machine learning?",
         "Explain neural networks",
@@ -36,7 +21,6 @@ class FlashRAGUser(HttpUser):
     
     @task(5)
     def query_with_cache(self):
-        """Most common: Regular query with cache enabled"""
         self.client.post("/api/query", json={
             "query": random.choice(self.queries),
             "use_cache": True,
@@ -45,7 +29,6 @@ class FlashRAGUser(HttpUser):
     
     @task(2)
     def query_without_cache(self):
-        """Query without cache to test full pipeline"""
         self.client.post("/api/query", json={
             "query": random.choice(self.queries),
             "use_cache": False,
@@ -54,7 +37,6 @@ class FlashRAGUser(HttpUser):
     
     @task(2)
     def streaming_query(self):
-        """Streaming query"""
         self.client.post("/api/query", json={
             "query": random.choice(self.queries),
             "use_cache": True,
@@ -63,7 +45,6 @@ class FlashRAGUser(HttpUser):
     
     @task(1)
     def batch_query(self):
-        """Batch query"""
         batch_queries = random.sample(self.queries, 3)
         self.client.post("/api/batch", json={
             "queries": batch_queries,
@@ -72,30 +53,24 @@ class FlashRAGUser(HttpUser):
     
     @task(1)
     def check_metrics(self):
-        """Check system metrics"""
         self.client.get("/api/metrics", name="/api/metrics")
     
     @task(1)
     def health_check(self):
-        """Health check"""
         self.client.get("/api/health", name="/api/health")
     
     def on_start(self):
-        """Called when a user starts"""
-        # Could add login or initialization here
         pass
 
 
 class StressTestUser(HttpUser):
-    """Aggressive user for stress testing"""
     
-    wait_time = between(0.1, 0.5)  # Very short wait time
+    wait_time = between(0.1, 0.5)
     
     queries = FlashRAGUser.queries
     
     @task
     def rapid_fire_queries(self):
-        """Rapid successive queries"""
         self.client.post("/api/query", json={
             "query": random.choice(self.queries),
             "use_cache": True,

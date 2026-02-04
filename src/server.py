@@ -1,8 +1,8 @@
-
 import asyncio
 import logging
 import json
 import time
+import threading
 from collections import defaultdict
 from threading import Lock
 from pathlib import Path
@@ -13,7 +13,6 @@ from fastapi.responses import StreamingResponse, HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-# Import combined engine
 from src.rag_engine import (
     Config, 
     FlashRAGPipeline, 
@@ -23,9 +22,7 @@ from src.rag_engine import (
 
 logger = logging.getLogger(__name__)
 
-# ==========================================
-# RATE LIMITER
-# ==========================================
+
 class RateLimiter:
     def __init__(self, max_requests: int = 60, window_seconds: int = 60):
         self.max_requests = max_requests
@@ -49,9 +46,6 @@ class RateLimiter:
             return True
 
 
-# ==========================================
-# METRICS COLLECTOR
-# ==========================================
 class MetricsCollector:
     def __init__(self):
         self.metrics = {
@@ -95,17 +89,12 @@ class MetricsCollector:
             }
 
 
-# ==========================================
-# WEB SERVER
-# ==========================================
 from contextlib import asynccontextmanager
 
-# Global State
 pipeline = None
 pipeline_ready = False
 
 def init_pipeline_background():
-    """Initialize the pipeline in background"""
     global pipeline, pipeline_ready
     logger.info("Initializing FlashRAG Pipeline...")
     try:
@@ -117,12 +106,10 @@ def init_pipeline_background():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
     logger.info("Server starting up...")
     thread = threading.Thread(target=init_pipeline_background, daemon=True)
     thread.start()
     yield
-    # Shutdown
     logger.info("Server shutting down...")
 
 app = FastAPI(title="FlashRAG API", version="1.0.0", lifespan=lifespan)
@@ -182,7 +169,6 @@ async def query(request: QueryRequest, req: Request):
 
 @app.post("/api/clear-cache")
 async def clear_cache():
-    """Clear the semantic cache"""
     if not pipeline_ready:
         raise HTTPException(status_code=503, detail="System initializing...")
         
@@ -215,7 +201,6 @@ async def upload_file(file: UploadFile = File(...)):
                 content = await file.read()
                 buffer.write(content)
         
-        # Trigger background reindex
         threading.Thread(target=reindex_documents, daemon=True).start()
         
         return {"status": "success", "message": f"File '{file.filename}' uploaded. Indexing started in background."}
@@ -242,7 +227,6 @@ def reindex_documents():
         logger.info(f"Reindexed {len(chunks)} chunks")
     except Exception as e:
         logger.error(f"Reindex error: {e}")
-        # Dont raise here, it's a background thread
 
 @app.get("/api/metrics")
 async def get_metrics():
@@ -304,7 +288,6 @@ async def root():
             overflow: hidden;
         }
 
-        /* Glassmorphism Utilities */
         .glass {
             background: var(--bg-card);
             backdrop-filter: blur(12px);
@@ -312,7 +295,6 @@ async def root():
             border: 1px solid var(--border);
         }
 
-        /* Sidebar */
         .sidebar {
             width: 280px;
             display: flex;
@@ -399,7 +381,6 @@ async def root():
             color: var(--text-main);
         }
 
-        /* Main Chat Area */
         .main {
             flex: 1;
             display: flex;
@@ -439,7 +420,6 @@ async def root():
             scroll-behavior: smooth;
         }
 
-        /* Messages */
         .message {
             display: flex;
             gap: 16px;
@@ -488,7 +468,6 @@ async def root():
             color: var(--text-muted);
         }
 
-        /* Metrics Card */
         .metrics-card {
             margin-top: 12px;
             display: inline-flex;
@@ -512,7 +491,6 @@ async def root():
             font-weight: 700;
         }
 
-        /* Input Area */
         .input-area {
             position: absolute;
             bottom: 40px;
@@ -637,12 +615,10 @@ async def root():
         input:checked + .slider { background: var(--primary); }
         input:checked + .slider:before { transform: translateX(14px); }
 
-        /* Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
         
-        /* Toast */
         .toast {
             position: fixed;
             top: 20px;
@@ -666,25 +642,23 @@ async def root():
 <body>
     <div class="sidebar glass">
         <div class="brand">
-            <div class="brand-icon">⚡</div>
+            <div class="brand-icon">F</div>
             FlashRAG
         </div>
         <button class="btn-new-chat" onclick="createNewChat()">
             <span>+</span> New Chat
         </button>
         <div class="history-list" id="historyList">
-            <!-- Sessions rendered here -->
         </div>
     </div>
 
     <div class="main">
         <div class="header glass">
             <div style="font-weight: 500;" id="chatTitle">New Session</div>
-            <div class="status-badge" id="statusBadge">● System Online</div>
+            <div class="status-badge" id="statusBadge">System Online</div>
         </div>
 
         <div class="chat-container" id="chatContainer">
-            <!-- Messages will appear here -->
         </div>
 
         <div class="input-area">
@@ -716,22 +690,17 @@ async def root():
     <div class="toast" id="toast">File uploaded successfully</div>
 
     <script>
-        // State
         let sessions = JSON.parse(localStorage.getItem('flashrag_sessions')) || [];
         let currentSessionId = null;
 
-        // Initialize
         if (sessions.length === 0) createNewChat();
         else loadSession(sessions[0].id);
 
         renderHistoryList();
 
-        // Elements
         const chatContainer = document.getElementById('chatContainer');
         const queryInput = document.getElementById('query');
         const historyList = document.getElementById('historyList');
-
-        // --- Session Management ---
 
         function createNewChat() {
             const id = Date.now().toString();
@@ -786,8 +755,6 @@ async def root():
         function addMessageToSession(role, content, metrics = null) {
             const session = sessions.find(s => s.id === currentSessionId);
             if (session) {
-                // If message already exists (streaming update), update it
-                // For simplicity in this demo, we'll just append for user, and update last for AI stream
                 if (role === 'ai' && session.messages.length > 0 && session.messages[session.messages.length - 1].role === 'ai' && session.messages[session.messages.length - 1].isStreaming) {
                      session.messages[session.messages.length - 1].content = content;
                      if (metrics) {
@@ -800,8 +767,6 @@ async def root():
                 saveSessions();
             }
         }
-
-        // --- Rendering ---
 
         function renderHistoryList() {
             historyList.innerHTML = sessions.map(s => `
@@ -834,7 +799,6 @@ async def root():
 
         function appendMetrics(msgDiv, metrics) {
              const contentDiv = msgDiv.querySelector('.message-content');
-             // Check if metrics already exist
              if (contentDiv.querySelector('.metrics-card')) return;
 
              const metricsDiv = document.createElement('div');
@@ -842,21 +806,19 @@ async def root():
              
              let html = `
                  <div class="metric-item">
-                     <span>⚡</span>
+                     <span>Latency</span>
                      <span class="metric-value">${Math.round(metrics.latency_ms)}ms</span>
                  </div>
              `;
              if (metrics.cache_hit) {
-                 html += `<div class="metric-item"><span style="color:#10b981">● Cache Hit</span></div>`;
+                 html += `<div class="metric-item"><span style="color:#10b981">Cache Hit</span></div>`;
              }
              if (metrics.num_retrieved) {
-                 html += `<div class="metric-item"><span>📚</span><span class="metric-value">${metrics.num_retrieved}</span> src</div>`;
+                 html += `<div class="metric-item"><span>Sources</span><span class="metric-value">${metrics.num_retrieved}</span></div>`;
              }
              metricsDiv.innerHTML = html;
              contentDiv.appendChild(metricsDiv);
         }
-
-        // --- Actions ---
 
         async function handleFileUpload() {
             const fileInput = document.getElementById('fileInput');
@@ -876,15 +838,14 @@ async def root():
                 const data = await response.json();
                 
                 if (response.ok) {
-                    showToast("✅ " + data.message);
-                    // Add system message
+                    showToast("Success: " + data.message);
                     addMessageToSession('ai', `I've successfully indexed **${file.name}**. You can now ask questions about it.`);
                     renderMessages(sessions.find(s => s.id === currentSessionId).messages);
                 } else {
-                    showToast("❌ Error: " + data.detail);
+                    showToast("Error: " + data.detail);
                 }
             } catch (error) {
-                showToast("❌ Upload failed");
+                showToast("Upload failed");
                 console.error(error);
             }
             fileInput.value = '';
@@ -904,7 +865,6 @@ async def root():
             queryInput.value = '';
             queryInput.style.height = 'auto';
 
-            // Add user message to UI and State
             const msgDiv = createMessageDiv('user', query);
             chatContainer.appendChild(msgDiv);
             scrollToBottom();
@@ -918,7 +878,6 @@ async def root():
             btn.disabled = true;
 
             try {
-                // AI Message Placeholder
                 let aiMsgDiv = createMessageDiv('ai', '<span class="typing">Thinking...</span>');
                 chatContainer.appendChild(aiMsgDiv);
                 scrollToBottom();
@@ -926,7 +885,6 @@ async def root():
                 let aiContentDiv = aiMsgDiv.querySelector('.message-content');
                 let currentText = '';
 
-                // Add placeholder state
                 addMessageToSession('ai', 'Thinking...'); 
 
                 if (useStream) {
@@ -937,7 +895,7 @@ async def root():
                     });
 
                     if (response.status === 503) {
-                         const msg = '<p>🚀 <b>System Initializing...</b></p><p>Models are loading in the background. Please wait 30-60 seconds.</p>';
+                         const msg = '<p><b>System Initializing...</b></p><p>Models are loading in the background. Please wait 30-60 seconds.</p>';
                          aiContentDiv.innerHTML = msg;
                          addMessageToSession('ai', msg);
                          return;
@@ -960,7 +918,6 @@ async def root():
                                     if (data.type === 'content') {
                                         currentText += data.data;
                                         aiContentDiv.innerHTML = marked.parse(currentText);
-                                        // Update state periodically or at end? For now update at end to avoid spamming localstorage
                                     } else if (data.type === 'complete' || data.type === 'cache_hit') {
                                         if (data.type === 'cache_hit') {
                                             currentText = data.data;
@@ -968,7 +925,6 @@ async def root():
                                         }
                                         if (data.metrics) {
                                             appendMetrics(aiMsgDiv, data.metrics);
-                                            // Final save
                                             addMessageToSession('ai', currentText, data.metrics);
                                         }
                                     }
@@ -985,7 +941,7 @@ async def root():
                     });
 
                     if (response.status === 503) {
-                         const msg = '<p>🚀 <b>System Initializing...</b></p><p>Models are loading in the background.</p>';
+                         const msg = '<p><b>System Initializing...</b></p><p>Models are loading in the background.</p>';
                          aiContentDiv.innerHTML = msg;
                          addMessageToSession('ai', msg);
                          return;
@@ -999,8 +955,7 @@ async def root():
                     }
                 }
             } catch (error) {
-                // Handle error
-                const errorMsg = `⚠️ Error: ${error.message}`;
+                const errorMsg = `Error: ${error.message}`;
                 const errorDiv = createMessageDiv('ai', errorMsg);
                 chatContainer.appendChild(errorDiv);
                 addMessageToSession('ai', errorMsg);
@@ -1009,7 +964,6 @@ async def root():
             }
         }
         
-        // Auto resize input
         queryInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();

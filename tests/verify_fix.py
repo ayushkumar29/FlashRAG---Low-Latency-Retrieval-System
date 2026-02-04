@@ -1,8 +1,6 @@
-
 import sys
 from pathlib import Path
 
-# Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 print("DEBUG: Starting imports...")
@@ -20,12 +18,10 @@ def test_document_loading():
         
         for doc in docs:
             content = doc.page_content
-            # Check for common garbage characters from reading UTF-16 as UTF-8
             if "\x00" in content:
                 print("FAILURE: Null bytes found in document content!")
                 sys.exit(1)
             
-            # Check for a known string from the file if possible, or just print a snippet
             print(f"Snippet: {content[:100]}...")
             
         print("SUCCESS: Documents loaded without null bytes.")
