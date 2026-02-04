@@ -342,6 +342,25 @@ async def root():
             font-size: 18px;
         }
 
+        .btn-new-chat {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s;
+        }
+        
+        .btn-new-chat:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--text-muted);
+        }
+
         .history-list {
             flex: 1;
             overflow-y: auto;
@@ -360,7 +379,20 @@ async def root():
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
+        
+        .history-item .delete-btn {
+            opacity: 0;
+            cursor: pointer;
+            color: #ef4444;
+            font-size: 1.2em;
+            padding: 0 4px;
+        }
+        
+        .history-item:hover .delete-btn { opacity: 1; }
 
         .history-item:hover, .history-item.active {
             background: rgba(255, 255, 255, 0.05);
@@ -488,6 +520,7 @@ async def root():
             transform: translateX(-50%);
             width: 90%;
             max-width: 800px;
+            z-index: 100;
         }
 
         .input-box {
@@ -513,7 +546,7 @@ async def root():
             background: transparent;
             border: none;
             color: var(--text-main);
-            padding: 12px 16px;
+            padding: 12px 0;
             font-family: inherit;
             font-size: 1rem;
             resize: none;
@@ -522,6 +555,24 @@ async def root():
         }
 
         textarea:focus { outline: none; }
+
+        .action-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: grid;
+            place-items: center;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+        }
 
         .send-btn {
             width: 40px;
@@ -590,6 +641,26 @@ async def root():
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
+        
+        /* Toast */
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            padding: 12px 24px;
+            border-radius: 50px;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            animation: slideDown 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes slideDown { 
+            from { transform: translate(-50%, -100%); opacity: 0; }
+            to { transform: translate(-50%, 0); opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -598,25 +669,22 @@ async def root():
             <div class="brand-icon">⚡</div>
             FlashRAG
         </div>
-        <div class="history-list">
-            <div class="history-item active">New Chat</div>
+        <button class="btn-new-chat" onclick="createNewChat()">
+            <span>+</span> New Chat
+        </button>
+        <div class="history-list" id="historyList">
+            <!-- Sessions rendered here -->
         </div>
     </div>
 
     <div class="main">
         <div class="header glass">
-            <div style="font-weight: 500;">New Session</div>
-            <div class="status-badge">● System Online</div>
+            <div style="font-weight: 500;" id="chatTitle">New Session</div>
+            <div class="status-badge" id="statusBadge">● System Online</div>
         </div>
 
         <div class="chat-container" id="chatContainer">
             <!-- Messages will appear here -->
-            <div class="message">
-                <div class="avatar ai">AI</div>
-                <div class="message-content">
-                    <p>Hello! I'm FlashRAG, your low-latency knowledge assistant. I can answer questions using your provided documents with millisecond-level speeds. How can I help?</p>
-                </div>
-            </div>
         </div>
 
         <div class="input-area">
@@ -633,6 +701,10 @@ async def root():
                 </label>
             </div>
             <div class="input-box">
+                <input type="file" id="fileInput" style="display: none;" onchange="handleFileUpload()">
+                <button class="action-btn" onclick="document.getElementById('fileInput').click()" title="Upload Document">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                </button>
                 <textarea id="query" rows="1" placeholder="Ask anything..." oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'"></textarea>
                 <button class="send-btn" id="submitBtn" onclick="submitQuery()">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
@@ -640,69 +712,205 @@ async def root():
             </div>
         </div>
     </div>
+    
+    <div class="toast" id="toast">File uploaded successfully</div>
 
     <script>
+        // State
+        let sessions = JSON.parse(localStorage.getItem('flashrag_sessions')) || [];
+        let currentSessionId = null;
+
+        // Initialize
+        if (sessions.length === 0) createNewChat();
+        else loadSession(sessions[0].id);
+
+        renderHistoryList();
+
+        // Elements
         const chatContainer = document.getElementById('chatContainer');
         const queryInput = document.getElementById('query');
-        
-        // Auto resize input
-        queryInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                submitQuery();
-            }
-        });
+        const historyList = document.getElementById('historyList');
 
-        function appendMessage(role, content) {
+        // --- Session Management ---
+
+        function createNewChat() {
+            const id = Date.now().toString();
+            const newSession = {
+                id: id,
+                title: "New Chat",
+                messages: [
+                    { role: 'ai', content: "Hello! I'm FlashRAG. Upload a document or ask me anything." }
+                ],
+                timestamp: Date.now()
+            };
+            sessions.unshift(newSession);
+            saveSessions();
+            loadSession(id);
+        }
+
+        function loadSession(id) {
+            currentSessionId = id;
+            const session = sessions.find(s => s.id === id);
+            if (!session) return;
+
+            document.getElementById('chatTitle').textContent = session.title;
+            renderHistoryList();
+            renderMessages(session.messages);
+        }
+        
+        function deleteSession(e, id) {
+            e.stopPropagation();
+            if (confirm('Delete this chat?')) {
+                sessions = sessions.filter(s => s.id !== id);
+                saveSessions();
+                if (sessions.length === 0) createNewChat();
+                else if (currentSessionId === id) loadSession(sessions[0].id);
+                else renderHistoryList();
+            }
+        }
+
+        function saveSessions() {
+            localStorage.setItem('flashrag_sessions', JSON.stringify(sessions));
+        }
+        
+        function updateSessionTitle(id, text) {
+            const session = sessions.find(s => s.id === id);
+            if (session && session.title === "New Chat") {
+                session.title = text.slice(0, 30) + (text.length > 30 ? '...' : '');
+                saveSessions();
+                renderHistoryList();
+                document.getElementById('chatTitle').textContent = session.title;
+            }
+        }
+
+        function addMessageToSession(role, content, metrics = null) {
+            const session = sessions.find(s => s.id === currentSessionId);
+            if (session) {
+                // If message already exists (streaming update), update it
+                // For simplicity in this demo, we'll just append for user, and update last for AI stream
+                if (role === 'ai' && session.messages.length > 0 && session.messages[session.messages.length - 1].role === 'ai' && session.messages[session.messages.length - 1].isStreaming) {
+                     session.messages[session.messages.length - 1].content = content;
+                     if (metrics) {
+                         session.messages[session.messages.length - 1].metrics = metrics;
+                         session.messages[session.messages.length - 1].isStreaming = false;
+                     }
+                } else {
+                    session.messages.push({ role, content, metrics, isStreaming: role === 'ai' && !metrics });
+                }
+                saveSessions();
+            }
+        }
+
+        // --- Rendering ---
+
+        function renderHistoryList() {
+            historyList.innerHTML = sessions.map(s => `
+                <div class="history-item ${s.id === currentSessionId ? 'active' : ''}" onclick="loadSession('${s.id}')">
+                    <span>${s.title}</span>
+                    <span class="delete-btn" onclick="deleteSession(event, '${s.id}')">&times;</span>
+                </div>
+            `).join('');
+        }
+
+        function renderMessages(messages) {
+            chatContainer.innerHTML = '';
+            messages.forEach(msg => {
+                const msgDiv = createMessageDiv(msg.role, msg.content);
+                chatContainer.appendChild(msgDiv);
+                if (msg.metrics) appendMetrics(msgDiv, msg.metrics);
+            });
+            scrollToBottom();
+        }
+
+        function createMessageDiv(role, content) {
             const msgDiv = document.createElement('div');
             msgDiv.className = `message ${role}`;
             msgDiv.innerHTML = `
                 <div class="avatar ${role}">${role === 'ai' ? 'AI' : 'U'}</div>
                 <div class="message-content">${role === 'ai' ? marked.parse(content) : `<p>${content}</p>`}</div>
             `;
-            chatContainer.appendChild(msgDiv);
-            scrollToBottom();
             return msgDiv;
         }
 
         function appendMetrics(msgDiv, metrics) {
-            const contentDiv = msgDiv.querySelector('.message-content');
-            const metricsDiv = document.createElement('div');
-            metricsDiv.className = 'metrics-card';
-            
-            let html = `
-                <div class="metric-item">
-                    <span>⚡</span>
-                    <span class="metric-value">${Math.round(metrics.latency_ms)}ms</span>
-                </div>
-            `;
-            
-            if (metrics.cache_hit) {
-                html += `<div class="metric-item"><span style="color:#10b981">● Cache Hit</span></div>`;
-            }
-            if (metrics.num_retrieved) {
-                html += `<div class="metric-item"><span>📚</span><span class="metric-value">${metrics.num_retrieved}</span> src</div>`;
-            }
-            
-            metricsDiv.innerHTML = html;
-            contentDiv.appendChild(metricsDiv);
-            scrollToBottom();
+             const contentDiv = msgDiv.querySelector('.message-content');
+             // Check if metrics already exist
+             if (contentDiv.querySelector('.metrics-card')) return;
+
+             const metricsDiv = document.createElement('div');
+             metricsDiv.className = 'metrics-card';
+             
+             let html = `
+                 <div class="metric-item">
+                     <span>⚡</span>
+                     <span class="metric-value">${Math.round(metrics.latency_ms)}ms</span>
+                 </div>
+             `;
+             if (metrics.cache_hit) {
+                 html += `<div class="metric-item"><span style="color:#10b981">● Cache Hit</span></div>`;
+             }
+             if (metrics.num_retrieved) {
+                 html += `<div class="metric-item"><span>📚</span><span class="metric-value">${metrics.num_retrieved}</span> src</div>`;
+             }
+             metricsDiv.innerHTML = html;
+             contentDiv.appendChild(metricsDiv);
         }
 
-        function scrollToBottom() {
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+        // --- Actions ---
+
+        async function handleFileUpload() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            showToast("Uploading and indexing...");
+            
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showToast("✅ " + data.message);
+                    // Add system message
+                    addMessageToSession('ai', `I've successfully indexed **${file.name}**. You can now ask questions about it.`);
+                    renderMessages(sessions.find(s => s.id === currentSessionId).messages);
+                } else {
+                    showToast("❌ Error: " + data.detail);
+                }
+            } catch (error) {
+                showToast("❌ Upload failed");
+                console.error(error);
+            }
+            fileInput.value = '';
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.style.display = 'block';
+            setTimeout(() => toast.style.display = 'none', 3000);
         }
 
         async function submitQuery() {
             const query = queryInput.value.trim();
             if (!query) return;
 
-            // Reset input
             queryInput.value = '';
             queryInput.style.height = 'auto';
 
-            // Add user message
-            appendMessage('user', query);
+            // Add user message to UI and State
+            const msgDiv = createMessageDiv('user', query);
+            chatContainer.appendChild(msgDiv);
+            scrollToBottom();
+            
+            addMessageToSession('user', query);
+            updateSessionTitle(currentSessionId, query);
 
             const useCache = document.getElementById('useCache').checked;
             const useStream = document.getElementById('useStream').checked;
@@ -710,10 +918,16 @@ async def root():
             btn.disabled = true;
 
             try {
-                // Create AI message placeholder
-                let aiMsgDiv = appendMessage('ai', '<span class="typing">Thinking...</span>');
+                // AI Message Placeholder
+                let aiMsgDiv = createMessageDiv('ai', '<span class="typing">Thinking...</span>');
+                chatContainer.appendChild(aiMsgDiv);
+                scrollToBottom();
+                
                 let aiContentDiv = aiMsgDiv.querySelector('.message-content');
                 let currentText = '';
+
+                // Add placeholder state
+                addMessageToSession('ai', 'Thinking...'); 
 
                 if (useStream) {
                     const response = await fetch('/api/query', {
@@ -723,11 +937,11 @@ async def root():
                     });
 
                     if (response.status === 503) {
-                        aiContentDiv.innerHTML = '<p>🚀 <b>System Initializing...</b></p><p>Models are loading in the background. Please wait 30-60 seconds and try again.</p>';
-                        return;
+                         const msg = '<p>🚀 <b>System Initializing...</b></p><p>Models are loading in the background. Please wait 30-60 seconds.</p>';
+                         aiContentDiv.innerHTML = msg;
+                         addMessageToSession('ai', msg);
+                         return;
                     }
-
-                    if (!response.ok) throw new Error('Server error: ' + response.status);
 
                     const reader = response.body.getReader();
                     const decoder = new TextDecoder();
@@ -746,12 +960,16 @@ async def root():
                                     if (data.type === 'content') {
                                         currentText += data.data;
                                         aiContentDiv.innerHTML = marked.parse(currentText);
+                                        // Update state periodically or at end? For now update at end to avoid spamming localstorage
                                     } else if (data.type === 'complete' || data.type === 'cache_hit') {
                                         if (data.type === 'cache_hit') {
+                                            currentText = data.data;
                                             aiContentDiv.innerHTML = marked.parse(data.data);
                                         }
                                         if (data.metrics) {
                                             appendMetrics(aiMsgDiv, data.metrics);
+                                            // Final save
+                                            addMessageToSession('ai', currentText, data.metrics);
                                         }
                                     }
                                     scrollToBottom();
@@ -760,7 +978,6 @@ async def root():
                         }
                     }
                 } else {
-                    // Normal Request
                     const response = await fetch('/api/query', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
@@ -768,25 +985,40 @@ async def root():
                     });
 
                     if (response.status === 503) {
-                        aiContentDiv.innerHTML = '<p>🚀 <b>System Initializing...</b></p><p>Models are loading in the background. Please wait 30-60 seconds and try again.</p>';
-                        return;
+                         const msg = '<p>🚀 <b>System Initializing...</b></p><p>Models are loading in the background.</p>';
+                         aiContentDiv.innerHTML = msg;
+                         addMessageToSession('ai', msg);
+                         return;
                     }
-                    
-                    if (!response.ok) throw new Error('Server error: ' + response.status);
 
                     const data = await response.json();
-                    
                     aiContentDiv.innerHTML = marked.parse(data.answer);
                     if (data.metrics) {
                         appendMetrics(aiMsgDiv, data.metrics);
+                        addMessageToSession('ai', data.answer, data.metrics);
                     }
                 }
-
             } catch (error) {
-                appendMessage('ai', `⚠️ Error: ${error.message}`);
+                // Handle error
+                const errorMsg = `⚠️ Error: ${error.message}`;
+                const errorDiv = createMessageDiv('ai', errorMsg);
+                chatContainer.appendChild(errorDiv);
+                addMessageToSession('ai', errorMsg);
             } finally {
                 btn.disabled = false;
             }
+        }
+        
+        // Auto resize input
+        queryInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                submitQuery();
+            }
+        });
+
+        function scrollToBottom() {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
         }
     </script>
 </body>
